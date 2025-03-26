@@ -7,12 +7,17 @@ import { auth } from "@/configs/firebaseCofig"
 import { api } from "../convex/_generated/api"
 import { useMutation } from "convex/react"
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
+import { ConvexProvider, ConvexReactClient } from "convex/react"
 
 const paypalOptions = {
     "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
     currency: "USD",
     intent: "capture",
 }
+
+// Create a Convex client using the deployed URL
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL || "https://your-deployed-convex-url.convex.cloud"
+const convex = new ConvexReactClient(convexUrl)
 
 function Provider({ children }) {
   const [user, setUser] = useState()
@@ -36,18 +41,20 @@ function Provider({ children }) {
   }, [createUser])
 
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
-      <PayPalScriptProvider options={paypalOptions}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
-      </PayPalScriptProvider>
-    </AuthContext.Provider>
+    <ConvexProvider client={convex}>
+      <AuthContext.Provider value={{ user, setUser }}>
+        <PayPalScriptProvider options={paypalOptions}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
+        </PayPalScriptProvider>
+      </AuthContext.Provider>
+    </ConvexProvider>
   )
 }
 
