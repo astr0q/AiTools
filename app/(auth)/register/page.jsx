@@ -13,10 +13,13 @@ import Image from 'next/image';
 import logo from '@/public/logo.svg';
 import { db } from '@/configs/firebaseCofig';
 import { doc, setDoc } from 'firebase/firestore';
+import { api } from '@/convex/_generated/api';
+import { useMutation } from 'convex/react';
 
 export default function RegisterPage() {
-    const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const createUser = useMutation(api.users.createNewUser);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -91,60 +94,43 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+        setLoading(true);
+
         if (!validateForm()) {
             toast.error('Please check the form for errors');
             return;
         }
 
-        setIsLoading(true);
-        
         try {
-            // Create user with email and password
-            const userCredential = await createUserWithEmailAndPassword(
-                auth,
-                formData.email.trim(),
-                formData.password
-            );
+            const formData = new FormData(e.target);
+            const name = formData.get('name');
+            const email = formData.get('email');
+            const password = formData.get('password');
 
-            // Update user profile with name
-            await updateProfile(userCredential.user, {
-                displayName: formData.name.trim()
-            });
-
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-                name: formData.name,
-                email: formData.email,
-                createdAt: new Date().toISOString(),
-            });
-
-            toast.success('Account created successfully!');
+            // Create Firebase user
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
-            // Add a small delay before redirecting
-            setTimeout(() => {
-                router.push('/');  // or wherever your dashboard route is
-                router.refresh(); // Force a refresh of the navigation
-            }, 1000);
+            // Update Firebase profile
+            await updateProfile(userCredential.user, {
+                displayName: name
+            });
 
+            // Create user in Convex
+            console.log("Creating Convex user:", { name, email });
+            const convexUser = await createUser({
+                name: name,
+                email: email,
+                pictureURL: userCredential.user.photoURL || "",
+            });
+            
+            console.log("Convex user created:", convexUser);
+            toast.success('Account created successfully!');
+            router.push('/dashboard');
         } catch (error) {
             console.error('Registration error:', error);
-            let errorMessage = 'Failed to create account';
-            switch (error.code) {
-                case 'auth/email-already-in-use':
-                    errorMessage = 'This email is already registered';
-                    break;
-                case 'auth/weak-password':
-                    errorMessage = 'Password should be at least 6 characters';
-                    break;
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address';
-                    break;
-                default:
-                    errorMessage = error.message;
-            }
-            toast.error(errorMessage);
+            toast.error(error.message || 'Failed to create account');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -217,9 +203,9 @@ export default function RegisterPage() {
                     <Button
                         type="submit"
                         className="w-full"
-                        disabled={isLoading}
+                        disabled={loading}
                     >
-                        {isLoading ? 'Creating account...' : 'Create account'}
+                        {loading ? 'Creating account...' : 'Create account'}
                     </Button>
                 </form>
 

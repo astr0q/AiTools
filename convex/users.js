@@ -9,25 +9,29 @@ export const createNewUser = mutation({
     pictureURL: v.string(),
   },
   handler: async (ctx, args) => {
-    // Check if the user already exists
-    const user = await ctx.db
-      .query("users")
-      .filter(q => q.eq(q.field("email"), args.email))
-      .collect();
+    // Add console.log for debugging
+    console.log("Creating new user:", args);
 
-    // If user does not exist, create a new one with 10 credits
-    if (!user[0]?.email) {
-      const userData = {
-        name: args.name,
-        email: args.email,
-        pictureURL: args.pictureURL,
-        credits: 10, // Assign 10 credits to new users
-      };
-      const result = await ctx.db.insert("users", userData);
-      return userData;
+    const existingUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+
+    if (existingUser) {
+      console.log("User already exists:", existingUser);
+      return existingUser;
     }
-    // If the user exists, return the existing user
-    return user[0];
+
+    const newUser = await ctx.db.insert("users", {
+      name: args.name,
+      email: args.email,
+      credits: 5, // Default credits for new users
+      pictureURL: args.pictureURL || "",
+      createdAt: new Date().toISOString(),
+    });
+
+    console.log("New user created:", newUser);
+    return newUser;
   },
 });
 

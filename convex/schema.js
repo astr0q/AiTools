@@ -9,6 +9,10 @@ export default defineSchema({
     createdAt: v.string(),
   }),
   users: defineTable({
+    name: v.string(),
+    email: v.string(),
     credits: v.number(),
+    pictureURL: v.string(),
+    createdAt: v.string(),
   }),
 });
